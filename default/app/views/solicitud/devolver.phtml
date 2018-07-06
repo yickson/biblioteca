@@ -1,0 +1,117 @@
+<!-- Row -->
+<div class="row margen-pedido">
+  <div class="col-md-12">
+    <h2 class="text-center">Devolución de libro</h2>
+    <div class="form-group">
+    <form class="contact-form">
+      <div class="row">
+        <div class="col-md-12">
+          <label><b>Correo del solicitante</b></label>
+          <input id="correo" name="solicitante" class="form-control" placeholder="micorreo@ediciones-sm.cl">
+        </div>
+        <br>
+        <div class="col-md-12 margen-formulario">
+          <button id="consultar" type="button" class="btn btn-primary">Consultar</button>
+        </div>
+      </div>
+    </form>
+    </div>
+  </div>
+  <div class="col-md-12">
+    <div id="datos">
+    </div>
+  </div>
+</div>
+
+<div class="row margen-resultados">
+  <div class="col-md-12">
+    <div id="resultados">
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+  $(function(){
+    $( "#correo" ).autocomplete({
+       source: '<?php echo PUBLIC_PATH.'solicitud/listar_directorio'?>',
+       minLength: 2
+    });
+
+    $("#consultar").click(function(){
+      var correo = $("#correo").val();
+      var detalle = '';
+      $.ajax({
+        type: 'get',
+        cache: false,
+        url: 'http://localhost/api2/api/pedidos/pedido/'+correo,
+        success: function(pedidos){
+          console.log(pedidos);
+          $("#resultados").empty();
+          if(typeof pedidos !== 'undefined' && pedidos.length > 0){
+            $.each(pedidos, function(i, pedido){
+              detalle += `<div class="card text-white bg-primary">
+                            <div class="card-header">
+                              Solicitante: <b>${pedido.solicitante}</b>
+                            </div>
+                            <div class="card-body">
+                              <h5 class="card-title">${pedido.nombre}</h5>
+                              <p class="card-text">${pedido.descripcion}</p>
+                              <input class="libro_id${i}" type="hidden" value="${pedido.id_libro}" />
+                              <input class="solicitante${i}" type="hidden" value="${pedido.solicitante}" />
+                              <button class="btn btn-success devolver" value="${i}">Devolver</button>
+                            </div>
+                          </div><br><br>`;
+
+            });
+            $("#resultados").append(detalle);
+          }else{
+            detalle = `<div class="card text-white bg-primary">
+                          <div class="card-header">
+                            Solicitante: <b>${correo}</b>
+                          </div>
+                          <div class="card-body">
+                            <h5 class="card-title">No tiene solicitud pendiente.</h5>
+                          </div>
+                        </div>`;
+                        $("#resultados").append(detalle);
+          }
+
+        }
+      })
+    });
+
+    $("#resultados").on('click', '.devolver', function(){
+      var id = $(this).attr('value');
+      var libro = $('.libro_id'+id).val();
+      var solicitante = $('.solicitante'+id).val()
+      var datos = {
+        "directorio": {
+          "solicitante": solicitante
+        },
+        "libro":{
+          "libro_id": libro
+        }
+      }
+      console.log(datos);
+      $.ajax({
+        type: 'PUT',
+        cache: false,
+        url: 'http://localhost/api2/api/pedidos/devolverPedido',
+        data: datos,
+        success: function(result){
+          //console.log(result);
+          if(result === 'Devolucion exitosa'){
+            swal("Solicitud exitosa", "Gracias por la devolución del libro", "success");
+            $("#consultar").trigger("click");
+          }
+          if(result === 'No tiene ninguna devolucion pendiente'){
+            swal("Información", "Usted no tiene ninguna devolución pendiente", "info");
+          }
+          if(result === 'Error en la devolucion'){
+            swal("Información", "Comuníquese con una persona del área de sistema para solventar", "error");
+          }
+        }
+      });
+    })
+  })
+</script>

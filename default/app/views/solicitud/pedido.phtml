@@ -1,0 +1,120 @@
+    <!-- Row -->
+    <div class="row margen-pedido">
+      <div class="col-md-12">
+        <h2 class="text-center">Solicitud de libro</h2>
+        <div class="form-group">
+        <form class="contact-form">
+          <div class="row">
+            <div class="col-md-6">
+              <label><b>Correo del solicitante</b></label>
+              <input id="correo" name="solicitante" class="form-control" placeholder="micorreo@ediciones-sm.cl">
+            </div>
+            <div class="col-md-6">
+              <label><b>Nombre del libro</b></label>
+              <input id="libro" name="libro" class="form-control" placeholder="Nombre, Codigo o colección">
+            </div>
+          </div>
+        </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="row margen-resultados">
+      <div class="col-md-12">
+          <h2 class="text-center">Resultados</h2>
+      </div>
+      <div id="datos" class="row">
+      </div>
+    </div>
+    <!-- /Row -->
+<!-- /Blog -->
+<script>
+         $(function() {
+            $( "#correo" ).autocomplete({
+               source: '<?php echo PUBLIC_PATH.'solicitud/listar_directorio'?>',
+               minLength: 2
+            });
+
+            $("#libro").keyup(function(){
+              var libro = $("#libro").val();
+              var objeto = '';
+              var inicio = '';
+              var final = '';
+              //var estilo = 'disabled';
+              if(libro === ''){
+                libro = 'papelucho';
+              }
+
+                $.ajax({
+                  type: 'get',
+                  cache: false,
+                  url: 'http://localhost/api2/api/libro/buscarLibro/'+libro,
+                  success: function(result){
+                    $("#datos").empty();
+                    if(Object.keys(result).length > 0){
+                      $.each(result, function(i, book){
+                            objeto += `<div class="col-md"><div class="card margen-cartas" style="width: 18rem;">
+                                        <img class="card-img-top ${book.stock === '0' ? 'filtro-bn':''}" src="http://w3.edicionessm.cl/libreria/img/${book.imagen}" alt="Card image cap">
+                                        <div class="card-body">
+                                          <h5 class="card-title">${book.nombre}</h5>
+                                          <p class="card-text">${book.descripcion}</p>
+                                          <button class="seleccion btn btn-primary ${book.stock === '0' ? 'invisible':''}" value="${book.id}">Seleccionar</button>
+                                        </div>
+                                      </div></div>`;
+                      });
+                    }else{
+                      objeto += `<div class="col-md-12"><h3 class="text-center">No existen resultados para el término de búsqueda: ${libro}</h3></div>`
+                    }
+                    $("#datos").append(objeto);
+                  }
+              });
+            });
+
+            $("#datos").on('click', '.seleccion', function(){
+              var correo = $("#correo").val();
+              var libro_id = $(this).attr('value');
+              var detalle = '';
+              var info = '';
+              var datos = {
+                      'directorio': {
+                        'solicitante':correo
+                      },
+                      'buscador': {
+                        'libro_seleccionado':libro_id
+                      }
+                    };
+              if(correo === ''){
+                swal("Correo solicitante", "Debes ingresar un correo válido", "error");
+                return;
+              }
+              $.ajax({
+                type: 'post',
+                cache: false,
+                url: 'http://localhost/api2/api/pedidos/crearPedido',
+                data: datos,
+                success: function(result){
+                  if(result[2].status === "0"){
+                    swal("Solicitud bloqueada", "Usted tiene una solicitud pendiente", "error");
+                  }else{
+                    info = result[0]['pedido'];
+                    detalle = `<ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                  Solicitante: ${info[1]["solicitante"]}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                  Libro: ${info[2]["nombre"]}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                  Fecha solicitud: ${info[3]["fecha_solicitud"]}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                  Fecha estimada de devolución: ${info[4]["fecha_devolucion"]}
+                                </li>
+                              </ul>`;
+                    swal("Solicitud exitosa", detalle, "success");
+                  }
+                }
+              })
+            })
+         });
+</script>
